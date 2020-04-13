@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>查找合约替换位置</title>
+</head>
+<body>
+<p>选择 .mv 合约文件</p>
+<input id="input_mv" type="file"/>
+<br/>
+<p>合约 16 进制内容</p>
+<label for="input_hex_mv"></label>
+<textarea style="color: red;width: 680px;height: 120px;" id="input_hex_mv" disabled type="text">结果</textarea>
+<br/>
+<br/>
+<button id="btn_convert">转换</button>
+<br/>
+<br/>
+<p>默认合约地址</p>
+<label for="input_address"></label>
+<input id="input_address" style="width: 680px;" type="text"
+       value="7257c2417e4d1038e1817c8f283ace2e"/>
+<br/>
+<br/>
+<button id="btn_find">查找</button>
+<br/>
+<p>索引位置</p>
+<span style="color: red" id="output">结果</span>
+<p>将要替换的合约地址</p>
+<label for="input_address"></label>
+<input id="input_new_address" style="width: 680px;" type="text"
+       value="7f4644ae2b51b65bd3c9d414aa853407"/>
+<br/>
+<br/>
+<button id="btn_replace">替换</button>
+<br/>
+<p>替换完成的 MoveCode HexString (十六进制字符串)</p>
+<span style="color: red;width: 680px" id="output_move">结果</span>
+</body>
+<script type="text/javascript">
+    const fromHexString = hexString =>
+        new Uint8Array(hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+
+    const toHexString = bytes =>
+        bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
+
+    const getTokenAddressCode = function () {
+        const input = document.getElementById("input_address");
+        return fromHexString(input.value);
+    };
+
+    const getTargetTokenAddressCode = function () {
+        const input = document.getElementById("input_new_address");
+        if (input.value) {
+            return fromHexString(input.value);
+        } else {
+            alert("请填写将要替换的合约地址")
+            return null;
+        }
+    };
+
+    function getMoveHexString(call) {
+        const input = document.getElementById("input_mv");
+        const file = input.files.item(0);
+        if (file) {
+            const reader = new FileReader();
+            reader.readAsArrayBuffer(file);
+            reader.onload = function (e) {
+                if (this.result) {
+                    call(toHexString(new Uint8Array(this.result)));
+                }
+            };
+        } else {
+            alert("请先选择 .mv 合约文件")
+        }
+    }
+
+    function getMoveCode(call) {
+        const input = document.getElementById("input_mv");
+        const file = input.files.item(0);
+        if (file) {
+            const reader = new FileReader();
+            reader.readAsBinaryString(file);
+            reader.onload = function (e) {
+                if (this.result) {
+                    const content = JSON.parse(this.result.toString());
+                    call(content.code);
+                }
+            };
+        } else {
+            alert("请先选择 .mv 合约文件")
+        }
+    }
+
+    const findTokenAddressIndex = function (moveCode, tokenAddress) {
+        for (let index = 0; index < moveCode.length; index++) {
+            if (moveCode[index] === tokenAddress[0]) {
+                let isSuccess = true;
+
+                for (let targetPosition = 0; targetPosition < tokenAddress.length; targetPosition++) {
+                    if (moveCode[index + targetPosition] !== tokenAddress[targetPosition]) {
+                        isSuccess = false;
+                        break;
+                    }
+                }
+                if (isSuccess) {
+                    return index;
+                }
+            }
+        }
+        return -1;
+    };
+
+    document.getElementById("btn_convert").onclick = function(){
+        getMoveHexString(function (mvHex) {
+            document.getElementById("input_hex_mv").value = mvHex;
+        })
+    }
+
+    document.getElementById("btn_find").onclick = function () {
+        getMoveCode(function (byte) {
+            const tokenAddress = getTokenAddressCode();
+            let index = findTokenAddressIndex(byte, tokenAddress);
+            document.getElementById("output").innerText = index.toString();
+        })
+    };
+
+    document.getElementById("btn_replace").onclick = function () {
+        getMoveCode(function (moveCode) {
+            const tokenAddress = getTokenAddressCode();
+            const targetTokenAddress = getTargetTokenAddressCode();
+            if(targetTokenAddress){
+                let index = findTokenAddressIndex(moveCode, tokenAddress);
+
+                const startArray = moveCode.slice(0, index);
+                const endArray = moveCode.slice(index + tokenAddress.length, moveCode.length);
+                const newMoveCode = [].concat(startArray, Array.from(targetTokenAddress), endArray);
+                document.getElementById("output_move").innerText = toHexString(newMoveCode);
+            }
+        })
+    };
+</script>
+</html>
