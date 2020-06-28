@@ -37,6 +37,7 @@
                     </label>
 
                     <a class="btn green" onclick="downloadMove()">下载当前合约</a>
+                    <a class="btn green" onclick="showMove()">查看当前合约</a>
                 </div>
             </fieldset>
 
@@ -247,13 +248,22 @@
             loadNetWorkMove(call)
         }
     }
-    
+
     function downloadMove() {
         let selectMove = ks.select("#move_select");
         let selectedMove = selectMove.options[selectMove.selectedIndex];
         let moveUrl = selectedMove.getAttribute(`url`)
         window.open(moveUrl)
     }
+
+    function showMove() {
+        let selectMove = ks.select("#move_select");
+        let selectedMove = selectMove.options[selectMove.selectedIndex];
+        let moveUrl = selectedMove.getAttribute(`html_url`)
+        window.open(moveUrl.replace('/compiled', '').replace('.mv', '.move'))
+    }
+
+    //https://github.com/libra/libra/blob/master/language/stdlib/transaction_scripts/add_currency_to_account.move
 
     function refreshMoveList(branch) {
         ks.ajax({
@@ -272,7 +282,8 @@
                             text: item.name,
                             attr: [
                                 {name: 'name', value: item.name},
-                                {name: 'url', value: item.download_url}
+                                {name: 'url', value: item.download_url},
+                                {name: 'html_url', value: item.html_url}
                             ]
                         }))
                     }
