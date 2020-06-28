@@ -20,7 +20,26 @@
         </div>
         <div class="col-12 center">
             <h2>选择 .mv 合约文件</h2>
-            <input id="input_mv" type="file" onchange="handleFiles(this.files)"/>
+            <fieldset>
+                <label>
+                    <span>加载合约的方式</span>
+                    <select id="load_move_type" onchange="handleLocalMoveType()">
+                        <option>Github TestNet Branch</option>
+                        <option>本地文件</option>
+                        <option>Github Main Branch</option>
+                    </select>
+                </label>
+                <input id="input_mv" hidden type="file" onchange="handleFiles(this.files)"/>
+                <div hidden id="move_select_views">
+                    <label>
+                        <span>选择合约</span>
+                        <select id="move_select" onchange="handleFiles()"></select>
+                    </label>
+
+                    <a class="btn green" onclick="downloadMove()">下载当前合约</a>
+                </div>
+            </fieldset>
+
         </div>
 
         <section>
@@ -95,30 +114,6 @@
         }
     };
 
-    function getMoveHexString(call) {
-        const input = document.getElementById("input_mv");
-        const file = input.files.item(0);
-        if (file) {
-            const reader = new FileReader();
-            reader.readAsArrayBuffer(file);
-            reader.onload = function (e) {
-                if (this.result) {
-                    try {
-                        const content = JSON.parse(this.result.toString());
-                        call(content.code);
-                    } catch (e) {
-                        call(toHexString(new Uint8Array(this.result)));
-                    }
-                }
-            };
-        } else {
-            ks.notice("请先选择合约文件", {
-                time: 3000,
-                color: "red"
-            });
-        }
-    }
-
     const findTokenAddressIndex = function (moveCode, tokenAddress) {
         for (let index = 0; index < moveCode.length; index++) {
             if (moveCode[index] === tokenAddress[0]) {
@@ -168,5 +163,131 @@
             document.getElementById("input_hex_mv").innerHTML = mvHex;
         })
     }
+
+    function handleLocalMoveType() {
+        let loadMoveType = ks.select('#load_move_type').selectedIndex
+        if (loadMoveType === 1) {
+            ks.select('#input_mv').hidden = false
+            ks.select('#move_select_views').hidden = true
+        } else if (loadMoveType === 0) {
+            ks.select('#input_mv').hidden = true
+            ks.select('#move_select_views').hidden = false
+            refreshMoveList('testnet')
+        } else {
+            ks.select('#input_mv').hidden = true
+            ks.select('#move_select_views').hidden = false
+            refreshMoveList('master')
+        }
+    }
+
+    function loadNetWorkMove(call) {
+        let selectMove = ks.select("#move_select");
+        let selectedMove = selectMove.options[selectMove.selectedIndex];
+        let moveUrl = selectedMove.getAttribute(`url`)
+
+        let request = new XMLHttpRequest();
+        request.open('GET', moveUrl, true);
+        request.responseType = "arraybuffer";
+        request.onload = function () {
+            if (request.status === 200) {
+                let type = request.getResponseHeader('Content-Type');
+                if (type.indexOf("octet-stream") !== 1) {
+                    call(toHexString(new Uint8Array(request.response)))
+                    let moveName = selectedMove.getAttribute(`name`)
+                    ks.notice(moveName + " 合约加载成功。", {
+                        time: 2000,
+                        color: "green"
+                    });
+                }
+            } else {
+                ks.notice("网络加载失败,请重新选择合约!!!", {
+                    time: 3000,
+                    color: "yellow"
+                });
+            }
+        }
+        request.onerror = function (e) {
+            ks.notice("网络加载失败,请重新选择合约!!!", {
+                time: 3000,
+                color: "yellow"
+            });
+        }
+        request.send(null);
+    }
+
+    function loadLocalMoveFile(call) {
+        const input = document.getElementById("input_mv");
+        const file = input.files.item(0);
+        if (file) {
+            const reader = new FileReader();
+            reader.readAsArrayBuffer(file);
+            reader.onload = function (e) {
+                if (this.result) {
+                    try {
+                        const content = JSON.parse(this.result.toString());
+                        call(content.code);
+                    } catch (e) {
+                        call(toHexString(new Uint8Array(this.result)));
+                    }
+                }
+            };
+        } else {
+            ks.notice("请先选择合约文件", {
+                time: 3000,
+                color: "red"
+            });
+        }
+    }
+
+    function getMoveHexString(call) {
+        let loadMoveType = ks.select('#load_move_type').selectedIndex
+        if (loadMoveType === 1) {
+            loadLocalMoveFile(call)
+        } else {
+            loadNetWorkMove(call)
+        }
+    }
+    
+    function downloadMove() {
+        let selectMove = ks.select("#move_select");
+        let selectedMove = selectMove.options[selectMove.selectedIndex];
+        let moveUrl = selectedMove.getAttribute(`url`)
+        window.open(moveUrl)
+    }
+
+    function refreshMoveList(branch) {
+        ks.ajax({
+            type: "json",
+            method: "GET",
+            data: {
+                ref: branch
+            },
+            url: "https://api.github.com/repos/libra/libra/contents/language/stdlib/compiled/transaction_scripts",
+            success: function (response) {
+                let selectMove = ks.select("#move_select");
+                ks.empty(selectMove)
+                response.forEach(item => {
+                    if (item.name.indexOf('.mv') != -1) {
+                        selectMove.add(ks.create("option", {
+                            text: item.name,
+                            attr: [
+                                {name: 'name', value: item.name},
+                                {name: 'url', value: item.download_url}
+                            ]
+                        }))
+                    }
+                })
+                handleFiles()
+            },
+            failed: function (response) {
+                ks.notice("网络加载失败,请刷新网页!!!", {
+                    time: 3000,
+                    color: "yellow"
+                });
+            }
+        })
+    }
+
+    handleLocalMoveType()
 </script>
 </html>
