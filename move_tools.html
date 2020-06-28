@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Libra/Violas 合约操作工具</title>
+    <link href="https://cdn.jsdelivr.net/gh/Dreamer-Paul/Kico-Style/kico.min.css" rel="stylesheet" type="text/css"/>
+    <link href="static/doc.css" rel="stylesheet" type="text/css"/>
+    <meta name="viewport" content="width=device-width, maximum-scale=1, initial-scale=1"/>
+</head>
+<body>
+
+<main class="content">
+    <div class="header">
+        <h1>Libra/Violas 合约操作工具</h1>
+        <h2>可以查看和操作 .mv 文件</h2>
+    </div>
+    <article class="post">
+        <div class="col-12 center">
+            <h2>选择 .mv 合约文件</h2>
+            <input id="input_mv" type="file" onchange="handleFiles(this.files)"/>
+        </div>
+
+        <section>
+            <h2>合约 16 进制字符串</h2>
+            <pre class=" language-html"><code id="input_hex_mv" class=" language-html">请选择合约文件</code></pre>
+        </section>
+
+        <section>
+            <h2 id>查找合约地址索引位置</h2>
+            <fieldset>
+                <label>
+                    <span>编译合约的默认地址</span>
+                    <input id="find_input_default_address" type="text"
+                           value="7257c2417e4d1038e1817c8f283ace2e"/>
+                </label>
+
+                <button class="btn green" id="btn_find">查找索引位置</button>
+
+                <label>
+                    <span>默认地址索引位置</span>
+                    <input id="find_index_output" disabled type="text" value=""/>
+                </label>
+            </fieldset>
+        </section>
+
+        <section>
+            <h2 id>替换合约默认地址并产生新合约</h2>
+            <fieldset>
+                <label>
+                    <span>编译合约的默认地址</span>
+                    <input id="replace_input_default_address" style="width: 680px;" type="text"
+                           value="7257c2417e4d1038e1817c8f283ace2e"/>
+                </label>
+                <label>
+                    <span>替换默认地址的合约地址</span>
+                    <input id="replace_input_new_address" style="width: 680px;" type="text"
+                           value="7f4644ae2b51b65bd3c9d414aa853407"/>
+                </label>
+                <button class="btn green" id="btn_replace">生成新的合约</button>
+            </fieldset>
+            <label>
+                <span>替换地址完成的新合约(十六进制字符串)</span>
+                <pre class=" language-html"><code id="replace_move_code_output" class=" language-html">请点击生成新的合约</code></pre>
+            </label>
+        </section>
+    </article>
+</main>
+
+<footer>
+    <a class="to-top" href="#"></a>
+    <p>© 2020 By <a href="https://violas.io/" target="_blank">Violas Team</a>.</p>
+</footer>
+</body>
+<script src="https://cdn.jsdelivr.net/gh/Dreamer-Paul/Kico-Style/kico.min.js"></script>
+<script type="text/javascript">
+    const fromHexString = hexString =>
+        new Uint8Array(hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+
+    const toHexString = bytes =>
+        bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
+
+    const getTargetTokenAddressCode = function () {
+        const input = document.getElementById("replace_input_new_address");
+        if (input.value) {
+            return fromHexString(input.value);
+        } else {
+            ks.notice("请填写将要替换的合约地址", {
+                time: 3000,
+                color: "red"
+            });
+            return null;
+        }
+    };
+
+    function getMoveHexString(call) {
+        const input = document.getElementById("input_mv");
+        const file = input.files.item(0);
+        if (file) {
+            const reader = new FileReader();
+            reader.readAsArrayBuffer(file);
+            reader.onload = function (e) {
+                if (this.result) {
+                    try {
+                        const content = JSON.parse(this.result.toString());
+                        call(content.code);
+                    } catch (e) {
+                        call(toHexString(new Uint8Array(this.result)));
+                    }
+                }
+            };
+        } else {
+            ks.notice("请先选择合约文件", {
+                time: 3000,
+                color: "red"
+            });
+        }
+    }
+
+    const findTokenAddressIndex = function (moveCode, tokenAddress) {
+        for (let index = 0; index < moveCode.length; index++) {
+            if (moveCode[index] === tokenAddress[0]) {
+                let isSuccess = true;
+
+                for (let targetPosition = 0; targetPosition < tokenAddress.length; targetPosition++) {
+                    if (moveCode[index + targetPosition] !== tokenAddress[targetPosition]) {
+                        isSuccess = false;
+                        break;
+                    }
+                }
+                if (isSuccess) {
+                    return index;
+                }
+            }
+        }
+        return -1;
+    };
+
+    document.getElementById("btn_find").onclick = function () {
+        getMoveHexString(function (byte) {
+            const input = document.getElementById("find_input_default_address");
+            const tokenAddress = fromHexString(input.value);
+            let index = findTokenAddressIndex(byte, tokenAddress);
+            document.getElementById("find_index_output").value = index.toString();
+        })
+    };
+
+    document.getElementById("btn_replace").onclick = function () {
+        getMoveHexString(function (moveCode) {
+            const input = document.getElementById("replace_input_default_address");
+            const tokenAddress = fromHexString(input.value);
+            const targetTokenAddress = getTargetTokenAddressCode();
+            if (targetTokenAddress) {
+                let index = findTokenAddressIndex(moveCode, tokenAddress);
+
+                const startArray = moveCode.slice(0, index);
+                const endArray = moveCode.slice(index + tokenAddress.length, moveCode.length);
+                const newMoveCode = [].concat(startArray, Array.from(targetTokenAddress), endArray);
+                document.getElementById("replace_move_code_output").innerText = toHexString(newMoveCode);
+            }
+        })
+    };
+
+    function handleFiles() {
+        getMoveHexString(function (mvHex) {
+            document.getElementById("input_hex_mv").innerHTML = mvHex;
+        })
+    }
+</script>
+</html>

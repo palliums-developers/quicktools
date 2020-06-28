@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Libra/Violas 交易币种 TypeTag 生成器</title>
+    <link href="https://cdn.jsdelivr.net/gh/Dreamer-Paul/Kico-Style/kico.min.css" rel="stylesheet" type="text/css"/>
+    <link href="static/doc.css" rel="stylesheet" type="text/css"/>
+    <meta name="viewport" content="width=device-width, maximum-scale=1, initial-scale=1"/>
+</head>
+<body>
+
+<main class="content">
+    <div class="header">
+        <h1>Libra/Violas 交易币种 TypeTag 生成器</h1>
+        <h2>用于生成并验证币种信息</h2>
+    </div>
+
+    <article class="post">
+        <section>
+            <h2 id>查找合约地址索引位置</h2>
+            <fieldset>
+                <label>
+                    <span>选择链信息</span>
+                    <select id="token_chain">
+                        <option>Violas</option>
+                        <option>Libra</option>
+                    </select>
+                </label>
+                <label>
+                    <span>稳定币地址</span>
+                    <input id="token_address" type="text"
+                           value="00000000000000000000000000000001"/>
+                </label>
+
+                <label>
+                    <span>稳定币模块</span>
+                    <input id="token_module" type="text"
+                           value="LBR"/>
+                </label>
+
+                <label>
+                    <span>稳定币名称</span>
+                    <input id="token_name" type="text"
+                           value="LBR"/>
+                </label>
+
+                <button class="btn green" id="btn_generate">生成 TypeTag 信息</button>
+
+            </fieldset>
+            <label>
+                <span>生成的 TypeTag 信息</span>
+                <pre class=" language-html"><code id="typetag_output"
+                                                  class=" language-html">请点击生成 TypeTag 信息</code></pre>
+            </label>
+        </section>
+    </article>
+</main>
+
+<footer>
+    <a class="to-top" href="#"></a>
+    <p>© 2020 By <a href="https://violas.io/" target="_blank">Violas Team</a>.</p>
+</footer>
+</body>
+<script src="https://cdn.jsdelivr.net/gh/Dreamer-Paul/Kico-Style/kico.min.js"></script>
+<script type="text/javascript">
+    const toHexString = bytes =>
+        bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
+
+    const stringToBytes = (str) => {
+        let ch, st, re = [];
+        for (let i = 0; i < str.length; i++) {
+            ch = str.charCodeAt(i);  // get char
+            st = [];                 // set up "stack"
+
+            do {
+                st.push(ch & 0xFF);  // push byte to stack
+                ch = ch >> 8;          // shift value down by 1 byte
+            }
+
+            while (ch);
+            re = re.concat(st.reverse());
+        }
+        return re;
+    }
+
+    function LEB128_u(value, pad = 0) {
+        let bytes = []
+        let byte = 0x00
+
+        do {
+            byte = value & 0x7F
+            value = value >> 0x07
+
+            if (value != 0 || pad > 0) {
+                byte = byte | 0x80
+            }
+
+            bytes.push(byte)
+            pad--
+        } while (value != 0 || pad > -1)
+        return new Uint8ClampedArray(bytes)
+    }
+
+    function generateViolasTypeTag(address, module, name) {
+        let typeTag = '07';
+        typeTag += address;
+        typeTag += toHexString(LEB128_u(module.length));
+        typeTag += toHexString(stringToBytes(module));
+        typeTag += toHexString(LEB128_u(name.length));
+        typeTag += toHexString(stringToBytes(name));
+        typeTag += toHexString(LEB128_u(0));
+        return typeTag;
+    }
+
+    function generateLibraTypeTag(address, module, name) {
+        let typeTag = '07';
+        typeTag += address;
+        typeTag += toHexString(LEB128_u(module.length));
+        typeTag += toHexString(stringToBytes(module));
+        typeTag += toHexString(LEB128_u(name.length));
+        typeTag += toHexString(stringToBytes(name));
+        typeTag += toHexString(LEB128_u(0));
+        return typeTag;
+    }
+
+    document.getElementById("btn_generate").onclick = function () {
+        const tokenChain = document.getElementById("token_chain");
+        let index = tokenChain.selectedIndex;
+        let chainValue = tokenChain.options[index].value;
+
+        const tokenAddress = document.getElementById("token_address").value;
+        const tokenModule = document.getElementById("token_module").value;
+        const tokenName = document.getElementById("token_name").value;
+
+        if (!tokenAddress) {
+            ks.notice("请填写稳定币地址", {
+                time: 3000,
+                color: "red"
+            });
+            return null;
+        }
+        if (!tokenModule) {
+            ks.notice("请填写稳定币模块名称", {
+                time: 3000,
+                color: "red"
+            });
+            return null;
+        }
+        if (!tokenName) {
+            ks.notice("请填写稳定币名称", {
+                time: 3000,
+                color: "red"
+            });
+            return null;
+        }
+
+        let typeTag;
+        if (chainValue === 'Violas') {
+            typeTag = generateViolasTypeTag(tokenAddress, tokenModule, tokenName);
+        } else {
+            typeTag = generateLibraTypeTag(tokenAddress, tokenModule, tokenName);
+        }
+        document.getElementById("typetag_output").innerHTML = typeTag;
+    };
+</script>
+</html>
