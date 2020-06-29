@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Libra/Violas 常用地址</title>
+    <link href="static/kico.min.css" rel="stylesheet" type="text/css"/>
+    <link href="static/doc.css" rel="stylesheet" type="text/css"/>
+    <meta name="viewport" content="width=device-width, maximum-scale=1, initial-scale=1"/>
+</head>
+<body>
+<main class="content">
+    <div class="header">
+        <h1>Violas Team Quick Tools</h1>
+        <h2>Libra/Violas 常用地址</h2>
+    </div>
+    <article class="post">
+        <div>
+            <a class="float-right btn green small" href="https://palliums-developers.github.io/quicktools/index.html">返回首页</a>
+        </div>
+        <section>
+            <h2>账户详情</h2>
+            <fieldset>
+                <label>
+                    <span>选择网络</span>
+                    <select id="select_network">
+                        <option host_url='http://47.240.8.80:50001'>Violas 内部测试链</option>
+                        <option host_url='https://client.testnet.libra.org'>Libra 测试链</option>
+                        <option host_url='http://47.240.8.80:50001'>Violas 外部测试链</option>
+                    </select>
+                </label>
+
+                <label>
+                    <span>查询的地址</span>
+                    <input id="input_get_account_state_address" type="text" value="7f4644ae2b51b65bd3c9d414aa853407"/>
+                </label>
+
+                <button class="btn green" id="btn_get_account_state">查询账户详情</button>
+                <label>
+                    <span>账户信息</span>
+                    <pre class=" language-html"><code id="code_get_account_state" class=" language-json">请查询账户详情</code></pre>
+                </label>
+            </fieldset>
+        </section>
+    </article>
+</main>
+
+<footer>
+    <a class="to-top" href="#"></a>
+    <p>© 2020 By <a href="https://violas.io/" target="_blank">Violas Team</a>.</p>
+</footer>
+</body>
+<script src="static/kico.min.js"></script>
+<script src="static/violas_address_state.js"></script>
+</html>

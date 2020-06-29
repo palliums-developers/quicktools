@@ -1,0 +1,35 @@
+﻿{
+  "name": "Violas Expand",
+  "manifest_version": 2,
+  "version": "1.0",
+  "description": "Json RPC",
+  "browser_action": {
+    "default_icon": "logo.png",
+    "default_title": "Violas Chain Json RPC Test",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "scripts": [
+      "static/background.js"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "static/content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "web_accessible_resources": [
+    "static/inject.js"
+  ]
+}
