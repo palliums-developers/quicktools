@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Libra/Violas 合约操作工具</title>
+    <link href="https://cdn.jsdelivr.net/gh/Dreamer-Paul/Kico-Style/kico.min.css" rel="stylesheet" type="text/css"/>
+    <link href="static/doc.css" rel="stylesheet" type="text/css"/>
+    <meta name="viewport" content="width=device-width, maximum-scale=1, initial-scale=1"/>
+</head>
+<body>
+
+<main class="content">
+    <div class="header">
+        <h1>Libra/Violas 合约操作工具</h1>
+        <h2>可以查看和操作 .mv 文件，国内代理版可能不稳定。</h2>
+    </div>
+    <article class="post">
+        <div>
+            <a class="float-right btn green small" href="index.html">返回首页</a>
+        </div>
+        <div class="col-12 center">
+            <h2>选择 .mv 合约文件</h2>
+            <fieldset>
+                <label>
+                    <span>加载合约的方式</span>
+                    <select id="load_move_type" onchange="handleLocalMoveType()">
+                        <option>Github TestNet Branch</option>
+                        <option>本地文件</option>
+                        <option>Github Main Branch</option>
+                    </select>
+                </label>
+                <input id="input_mv" hidden type="file" onchange="handleFiles(this.files)"/>
+                <div hidden id="move_select_views">
+                    <label>
+                        <span>选择合约</span>
+                        <select id="move_select" onchange="handleFiles()"></select>
+                    </label>
+
+                    <a class="btn green" onclick="downloadMove()">下载当前合约</a>
+                    <a class="btn green" onclick="showMove()">查看当前合约</a>
+                </div>
+            </fieldset>
+
+        </div>
+
+        <section>
+            <h2>合约 16 进制字符串</h2>
+            <pre class=" language-html"><code id="input_hex_mv" class=" language-html">请选择合约文件</code></pre>
+        </section>
+
+        <section>
+            <h2 id>查找合约地址索引位置</h2>
+            <fieldset>
+                <label>
+                    <span>编译合约的默认地址</span>
+                    <input id="find_input_default_address" type="text"
+                           value="7257c2417e4d1038e1817c8f283ace2e"/>
+                </label>
+
+                <button class="btn green" id="btn_find">查找索引位置</button>
+
+                <label>
+                    <span>默认地址索引位置</span>
+                    <input id="find_index_output" disabled type="text" value=""/>
+                </label>
+            </fieldset>
+        </section>
+
+        <section>
+            <h2 id>替换合约默认地址并产生新合约</h2>
+            <fieldset>
+                <label>
+                    <span>编译合约的默认地址</span>
+                    <input id="replace_input_default_address" type="text"
+                           value="7257c2417e4d1038e1817c8f283ace2e"/>
+                </label>
+                <label>
+                    <span>替换默认地址的合约地址</span>
+                    <input id="replace_input_new_address" type="text"
+                           value="7f4644ae2b51b65bd3c9d414aa853407"/>
+                </label>
+                <button class="btn green" id="btn_replace">生成新的合约</button>
+            </fieldset>
+            <label>
+                <span>替换地址完成的新合约(十六进制字符串)</span>
+                <pre class=" language-html"><code id="replace_move_code_output" class=" language-html">请点击生成新的合约</code></pre>
+            </label>
+        </section>
+    </article>
+</main>
+
+<footer>
+    <a class="to-top" href="#"></a>
+    <p>© 2020 By <a href="https://violas.io/" target="_blank">Violas Team</a>.</p>
+</footer>
+</body>
+<script src="https://cdn.jsdelivr.net/gh/Dreamer-Paul/Kico-Style/kico.min.js"></script>
+<script type="text/javascript">
+    const fromHexString = hexString =>
+        new Uint8Array(hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+
+    const toHexString = bytes =>
+        bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
+
+    const getTargetTokenAddressCode = function () {
+        const input = document.getElementById("replace_input_new_address");
+        if (input.value) {
+            return fromHexString(input.value);
+        } else {
+            ks.notice("请填写将要替换的合约地址", {
+                time: 3000,
+                color: "red"
+            });
+            return null;
+        }
+    };
+
+    const findTokenAddressIndex = function (moveCode, tokenAddress) {
+        for (let index = 0; index < moveCode.length; index++) {
+            if (moveCode[index] === tokenAddress[0]) {
+                let isSuccess = true;
+
+                for (let targetPosition = 0; targetPosition < tokenAddress.length; targetPosition++) {
+                    if (moveCode[index + targetPosition] !== tokenAddress[targetPosition]) {
+                        isSuccess = false;
+                        break;
+                    }
+                }
+                if (isSuccess) {
+                    return index;
+                }
+            }
+        }
+        return -1;
+    };
+
+    document.getElementById("btn_find").onclick = function () {
+        getMoveHexString(function (byte) {
+            const input = document.getElementById("find_input_default_address");
+            const tokenAddress = fromHexString(input.value);
+            let index = findTokenAddressIndex(byte, tokenAddress);
+            document.getElementById("find_index_output").value = index.toString();
+        })
+    };
+
+    document.getElementById("btn_replace").onclick = function () {
+        getMoveHexString(function (moveCode) {
+            const input = document.getElementById("replace_input_default_address");
+            const tokenAddress = fromHexString(input.value);
+            const targetTokenAddress = getTargetTokenAddressCode();
+            if (targetTokenAddress) {
+                let index = findTokenAddressIndex(moveCode, tokenAddress);
+
+                const startArray = moveCode.slice(0, index);
+                const endArray = moveCode.slice(index + tokenAddress.length, moveCode.length);
+                const newMoveCode = [].concat(startArray, Array.from(targetTokenAddress), endArray);
+                document.getElementById("replace_move_code_output").innerText = toHexString(newMoveCode);
+            }
+        })
+    };
+
+    function handleFiles() {
+        getMoveHexString(function (mvHex) {
+            document.getElementById("input_hex_mv").innerHTML = mvHex;
+        })
+    }
+
+    function handleLocalMoveType() {
+        let loadMoveType = ks.select('#load_move_type').selectedIndex
+        if (loadMoveType === 1) {
+            ks.select('#input_mv').hidden = false
+            ks.select('#move_select_views').hidden = true
+        } else if (loadMoveType === 0) {
+            ks.select('#input_mv').hidden = true
+            ks.select('#move_select_views').hidden = false
+            refreshMoveList('testnet')
+        } else {
+            ks.select('#input_mv').hidden = true
+            ks.select('#move_select_views').hidden = false
+            refreshMoveList('master')
+        }
+    }
+
+    function replaceGithubUserContentByProxy(moveUrl) {
+        //https://cdn.jsdelivr.net/gh/username/reponame@branch/file
+        let net;
+        if (ks.select('#load_move_type').selectedIndex === 0) {
+            net = 'testnet'
+        } else {
+            net = 'master'
+        }
+        return moveUrl.replace('raw.githubusercontent.com', 'cdn.jsdelivr.net/gh').replace('libra/' + net, 'libra@' + net)
+    }
+
+    function loadNetWorkMove(call) {
+        let selectMove = ks.select("#move_select");
+        let selectedMove = selectMove.options[selectMove.selectedIndex];
+        let moveUrl = selectedMove.getAttribute(`url`)
+
+        moveUrl = replaceGithubUserContentByProxy(moveUrl)
+
+        let request = new XMLHttpRequest();
+        request.open('GET', moveUrl, true);
+        request.responseType = "arraybuffer";
+        request.onload = function () {
+            if (request.status === 200) {
+                let type = request.getResponseHeader('Content-Type');
+                if (type.indexOf("octet-stream") !== 1) {
+                    call(toHexString(new Uint8Array(request.response)))
+                    let moveName = selectedMove.getAttribute(`name`)
+                    ks.notice(moveName + " 合约加载成功。", {
+                        time: 2000,
+                        color: "green"
+                    });
+                }
+            } else {
+                ks.notice("网络加载失败,请重新选择合约!!!", {
+                    time: 3000,
+                    color: "yellow"
+                });
+            }
+        }
+        request.onerror = function (e) {
+            ks.notice("网络加载失败,请重新选择合约!!!", {
+                time: 3000,
+                color: "yellow"
+            });
+        }
+        request.send(null);
+    }
+
+    function loadLocalMoveFile(call) {
+        const input = document.getElementById("input_mv");
+        const file = input.files.item(0);
+        if (file) {
+            const reader = new FileReader();
+            reader.readAsArrayBuffer(file);
+            reader.onload = function (e) {
+                if (this.result) {
+                    try {
+                        const content = JSON.parse(this.result.toString());
+                        call(content.code);
+                    } catch (e) {
+                        call(toHexString(new Uint8Array(this.result)));
+                    }
+                }
+            };
+        } else {
+            ks.notice("请先选择合约文件", {
+                time: 3000,
+                color: "red"
+            });
+        }
+    }
+
+    function getMoveHexString(call) {
+        let loadMoveType = ks.select('#load_move_type').selectedIndex
+        if (loadMoveType === 1) {
+            loadLocalMoveFile(call)
+        } else {
+            loadNetWorkMove(call)
+        }
+    }
+
+    function downloadMove() {
+        let selectMove = ks.select("#move_select");
+        let selectedMove = selectMove.options[selectMove.selectedIndex];
+        let moveUrl = replaceGithubUserContentByProxy(selectedMove.getAttribute(`url`))
+        window.open(moveUrl)
+    }
+
+    function showMove() {
+        let selectMove = ks.select("#move_select");
+        let selectedMove = selectMove.options[selectMove.selectedIndex];
+        let moveUrl = selectedMove.getAttribute(`html_url`)
+        window.open(moveUrl.replace('/compiled', '').replace('.mv', '.move'))
+    }
+
+    //https://github.com/libra/libra/blob/master/language/stdlib/transaction_scripts/add_currency_to_account.move
+
+    function refreshMoveList(branch) {
+        ks.ajax({
+            type: "json",
+            method: "GET",
+            data: {
+                ref: branch
+            },
+            url: "https://api.github.com/repos/libra/libra/contents/language/stdlib/compiled/transaction_scripts",
+            success: function (response) {
+                let selectMove = ks.select("#move_select");
+                ks.empty(selectMove)
+                response.forEach(item => {
+                    if (item.name.indexOf('.mv') != -1) {
+                        selectMove.add(ks.create("option", {
+                            text: item.name,
+                            attr: [
+                                {name: 'name', value: item.name},
+                                {name: 'url', value: item.download_url},
+                                {name: 'html_url', value: item.html_url}
+                            ]
+                        }))
+                    }
+                })
+                handleFiles()
+            },
+            failed: function (response) {
+                ks.notice("网络加载失败,请刷新网页!!!", {
+                    time: 3000,
+                    color: "yellow"
+                });
+            }
+        })
+    }
+
+    handleLocalMoveType()
+</script>
+</html>
