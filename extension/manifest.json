@@ -8,23 +8,6 @@
     "default_title": "Violas Chain Json RPC Test",
     "default_popup": "popup.html"
   },
-  "background": {
-    "scripts": [
-      "static/background.js"
-    ]
-  },
-  "content_scripts": [
-    {
-      "matches": [
-        "http://*/*",
-        "https://*/*"
-      ],
-      "js": [
-        "static/content.js"
-      ],
-      "run_at": "document_start"
-    }
-  ],
   "permissions": [
     "http://*/*",
     "https://*/*"
@@ -33,3 +16,22 @@
     "static/inject.js"
   ]
 }
+
+//"background": {
+//"scripts": [
+//"static/background.js"
+//]
+//},
+
+//"content_scripts": [
+//{
+//"matches": [
+//"http://*/*",
+//"https://*/*"
+//],
+//"js": [
+//"static/content.js"
+//],
+//"run_at": "document_start"
+//}
+//],
