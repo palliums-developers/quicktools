@@ -115,29 +115,61 @@
         }
     };
 
-    const findTokenAddressIndex = function (moveCode, tokenAddress) {
-        for (let index = 0; index < moveCode.length; index++) {
-            if (moveCode[index] === tokenAddress[0]) {
-                let isSuccess = true;
+    // 计算next数组
+    const calcNext = function (str) {
+        let next = [-1],
+            len = str.length,
+            i = 1,
+            j = -1;
+        for (i = 1; i < len; i++) {
+            while (str[i] !== str[j + 1] && j > -1) {
+                j = next[j];
+            }
+            if (str[j + 1] === str[i]) {
+                j = j + 1;
+            }
+            next[i] = j;
+        }
+        return next;
+    }
 
-                for (let targetPosition = 0; targetPosition < tokenAddress.length; targetPosition++) {
-                    if (moveCode[index + targetPosition] !== tokenAddress[targetPosition]) {
-                        isSuccess = false;
-                        break;
-                    }
+    // source 源字符串
+    // match 要匹配的字符串
+    // res 保存匹配位置的数组
+    const findTokenAddressIndex = function (source, match) {
+        let next = calcNext(match),
+            m = source.length,
+            n = match.length,
+            i = 0,
+            j = 0,
+            res = [];
+        while (i < m - n) {
+            if (source[i] === match[j]) {
+                i++;
+                j++;
+                if (j === n) {
+                    res.push(i - n);
+                    j = next[j - 1] + 1;
                 }
-                if (isSuccess) {
-                    return index;
+            } else {
+                if (j === 0) {
+                    i++;
+                } else {
+                    j = next[j - 1] + 1;
                 }
             }
         }
-        return -1;
-    };
+        if (res.length === 0) {
+            return -1
+        } else {
+            return res[0];
+        }
+    }
 
     document.getElementById("btn_find").onclick = function () {
         getMoveHexString(function (byte) {
             const input = document.getElementById("find_input_default_address");
-            const tokenAddress = fromHexString(input.value);
+            const tokenAddress = input.value;
             let index = findTokenAddressIndex(byte, tokenAddress);
             document.getElementById("find_index_output").value = index.toString();
         })
@@ -146,7 +178,7 @@
     document.getElementById("btn_replace").onclick = function () {
         getMoveHexString(function (moveCode) {
             const input = document.getElementById("replace_input_default_address");
-            const tokenAddress = fromHexString(input.value);
+            const tokenAddress = input.value;
             const targetTokenAddress = getTargetTokenAddressCode();
             if (targetTokenAddress) {
                 let index = findTokenAddressIndex(moveCode, tokenAddress);
