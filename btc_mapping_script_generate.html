@@ -30,31 +30,31 @@
                 <label>
                     <span>Type</span>
                     <input id="start_type" type="text"
-                           value="0x3000" placeholder="脚本类型"/>
+                           value="" placeholder="脚本类型"/>
                 </label>
 
                 <label>
                     <span>Payee Address</span>
                     <input id="start_payee_address" type="text"
-                           value="c91806cabcd5b2b5fa25ae1c50bed3c6" placeholder="收款地址"/>
+                           value="" placeholder="收款地址"/>
                 </label>
 
                 <label>
-                    <span>sequence</span>
+                    <span>Sequence</span>
                     <input id="start_sequence" type="text"
-                           value="20200110006" placeholder="时间戳"/>
+                           value="" placeholder="时间戳"/>
                 </label>
 
                 <label>
-                    <span>sequence</span>
+                    <span>Module Address</span>
                     <input id="start_module_address" type="text"
-                           value="524689a4f870c46d6a5d901b5ac1fdb2" placeholder="合约地址"/>
+                           value="00000000000000000000000000000001" placeholder="合约地址"/>
                 </label>
 
                 <label>
-                    <span>sequence</span>
-                    <input id="start_out_amount" type="number"
-                           value="10000" placeholder="最小输出金额 单位为最小单位"/>
+                    <span>Min Out Amount</span>
+                    <input id="start_out_amount" type="text"
+                           value="" placeholder="最小输出金额 单位为最小单位"/>
                 </label>
 
                 <label>
@@ -63,13 +63,49 @@
                            value="0" placeholder="重试次数"/>
                 </label>
 
-                <button class="btn green" id="btn_start_script_generate">生成 TypeTag 信息</button>
+                <button class="btn green" id="btn_start_script_generate">生成发起兑换交易脚本</button>
 
             </fieldset>
             <label>
                 <span>生成发起兑换交易脚本</span>
                 <pre class=" language-html"><code id="start_script_output"
-                                                  class=" language-html">请点击生成 TypeTag 信息</code></pre>
+                                                  class=" language-html">请点击生成发起兑换交易脚本</code></pre>
+            </label>
+        </section>
+
+        <section>
+            <h2 id>生成取消兑换交易脚本</h2>
+            <fieldset>
+                <label>
+                    <span>Version</span>
+                    <input id="cancel_version" type="text"
+                           value="0x0003" placeholder="脚本版本"/>
+                </label>
+                <label>
+                    <span>Type</span>
+                    <input id="cancel_type" type="text"
+                           value="" placeholder="脚本类型"/>
+                </label>
+
+                <label>
+                    <span>Payee Address</span>
+                    <input id="cancel_payee_address" type="text"
+                           value="" placeholder="收款地址"/>
+                </label>
+
+                <label>
+                    <span>sequence</span>
+                    <input id="cancel_sequence" type="text"
+                           value="" placeholder="时间戳"/>
+                </label>
+
+                <button class="btn green" id="btn_cancel_script_generate">生成取消兑换交易脚本</button>
+
+            </fieldset>
+            <label>
+                <span>生成取消兑换交易脚本</span>
+                <pre class=" language-html"><code id="cancel_script_output"
+                                                  class=" language-html">请点击生成取消兑换交易脚本</code></pre>
             </label>
         </section>
     </article>
@@ -82,11 +118,9 @@
 </body>
 <script src="https://cdn.jsdelivr.net/gh/Dreamer-Paul/Kico-Style/kico.min.js"></script>
 <script src="static/tiddlybit.min.js"></script>
+<script src="static/BigInteger.min.js"></script>
 <script type="text/javascript">
     const {Script, OpCode} = TiddlyBit
-
-    const toHexString = bytes =>
-        bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
 
     const fromHexString = hexString =>
         new Uint8Array(hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
@@ -117,54 +151,37 @@
             throw "check error";
         }
     }
-    const getInt64BigEndianBytes = (x) => {
+    const getInt64BigEndianBytes = (num) => {
+        let x = bigInt(num)
         let bytes = [];
-        bytes[0] = (x >> 56) & 255
-        bytes[1] = (x >> 48) & 255
-        bytes[2] = (x >> 40) & 255
-        bytes[3] = (x >> 32) & 255
-        bytes[4] = (x >> 24) & 255
-        bytes[5] = (x >> 16) & 255
-        bytes[6] = (x >> 8) & 255
-        bytes[7] = x & 255
+        bytes[0] = x.shiftRight(56).and(255).valueOf()
+        bytes[1] = x.shiftRight(48).and(255).valueOf()
+        bytes[2] = x.shiftRight(40).and(255).valueOf()
+        bytes[3] = x.shiftRight(32).and(255).valueOf()
+        bytes[4] = x.shiftRight(24).and(255).valueOf()
+        bytes[5] = x.shiftRight(16).and(255).valueOf()
+        bytes[6] = x.shiftRight(8).and(255).valueOf()
+        bytes[7] = x.and(255).valueOf()
         return bytes;
     }
 
-    const getInt16BigEndianBytes = (x) => {
+    const getInt16BigEndianBytes = (num) => {
+        let x = bigInt(num).and(65535).valueOf()
         let bytes = [];
         bytes[0] = (x >> 8) & 255
         bytes[1] = x & 255
         return bytes;
     }
 
-    const getInt64Bytes = (x) => {
-        let bytes = [];
-        let i = 8;
-        do {
-            bytes[--i] = x & (255);
-            x = x >> 8;
-        } while (i)
-        return bytes;
-    }
-
-    const getInt16Bytes = (x) => {
-        let bytes = [];
-        let i = 2;
-        do {
-            bytes[--i] = x & (255);
-            x = x >> 8;
-        } while (i)
-        return bytes;
-    }
 
     document.getElementById("btn_start_script_generate").onclick = function () {
-        const startVersion = document.getElementById("start_version").value;
-        const startType = document.getElementById("start_type").value;
-        const startPayeeAddress = document.getElementById("start_payee_address").value;
-        const startSequence = document.getElementById("start_sequence").value;
-        const startModuleAddress = document.getElementById("start_module_address").value;
-        const startOutAmount = document.getElementById("start_out_amount").value;
-        const startTimes = document.getElementById("start_times").value;
+        const startVersion = document.getElementById("start_version").value.trim();
+        const startType = document.getElementById("start_type").value.trim();
+        const startPayeeAddress = document.getElementById("start_payee_address").value.trim();
+        const startSequence = document.getElementById("start_sequence").value.trim();
+        const startModuleAddress = document.getElementById("start_module_address").value.trim();
+        const startOutAmount = document.getElementById("start_out_amount").value.trim();
+        const startTimes = document.getElementById("start_times").value.trim();
 
         try {
             checkParam(startVersion, "请填写脚本版本")
@@ -178,18 +195,54 @@
             return null
         }
 
+        const mappingScript = [].concat(
+            stringToBytes('violas'),
+            Array.from(fromHexString(startVersion.replace("0x", ""))),
+            Array.from(fromHexString(startType.replace("0x", ""))),
+            Array.from(fromHexString(startPayeeAddress)),
+            getInt64BigEndianBytes(startSequence),
+            Array.from(fromHexString(startModuleAddress)),
+            getInt64BigEndianBytes(startOutAmount),
+            getInt16BigEndianBytes(startTimes)
+        )
+
         const script = new Script([
-            'violas',
-            // fromHexString(startVersion.replace("0x", "")),
-            // fromHexString(startType.replace("0x", "")),
-            // fromHexString(startPayeeAddress),
-            // getInt64BigEndianBytes(startSequence),
-            // fromHexString(startModuleAddress),
-            // getInt64BigEndianBytes(startOutAmount),
-            // getInt16BigEndianBytes(startTimes)
+            OpCode.OP_RETURN,
+            mappingScript
         ])
 
         document.getElementById("start_script_output").innerHTML = script.toHex();
+    };
+
+    document.getElementById("btn_cancel_script_generate").onclick = function () {
+        const cancelVersion = document.getElementById("cancel_version").value.trim();
+        const cancelType = document.getElementById("cancel_type").value.trim();
+        const cancelPayeeAddress = document.getElementById("cancel_payee_address").value.trim();
+        const cancelSequence = document.getElementById("cancel_sequence").value.trim();
+
+        try {
+            checkParam(cancelVersion, "请填写脚本版本")
+            checkParam(cancelType, "请填写脚本类型")
+            checkParam(cancelPayeeAddress, "请填写收款地址")
+            checkParam(cancelSequence, "请填写脚本时间戳")
+        } catch (e) {
+            return null
+        }
+
+        const mappingScript = [].concat(
+            stringToBytes('violas'),
+            Array.from(fromHexString(cancelVersion.replace("0x", ""))),
+            Array.from(fromHexString(cancelType.replace("0x", ""))),
+            Array.from(fromHexString(cancelPayeeAddress)),
+            getInt64BigEndianBytes(cancelSequence)
+        )
+
+        const script = new Script([
+            OpCode.OP_RETURN,
+            mappingScript
+        ])
+
+        document.getElementById("cancel_script_output").innerHTML = script.toHex();
     };
 </script>
 </html>
